@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ONVIF Camera Viewer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏：设备列表 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📷 设备管理</h2>
+            </div>
+
+            <!-- 多路流区域（离线本地化打包后也能工作） -->
+            <div id="streams-container" class="streams-container" style="display:flex; flex-wrap: wrap; gap:12px; padding-top:12px;"></div>
+            
+            <div class="discovery-controls">
+                <button id="btn-discover" class="btn btn-primary">
+                    <span class="btn-icon">🔍</span>
+                    发现设备
+                </button>
+                <button id="btn-stop-discovery" class="btn btn-secondary" disabled>
+                    <span class="btn-icon">⏹</span>
+                    停止发现
+                </button>
+            </div>
+
+            <div class="device-list-container">
+                <div id="device-list" class="device-list">
+                    <div class="empty-state">
+                        <p>暂无设备</p>
+                        <small>点击"发现设备"开始扫描</small>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主区域：视频播放 -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>视频监控</h1>
+                <div class="header-controls">
+                    <span id="device-info" class="device-info"></span>
+                </div>
+            </div>
+
+            <div class="video-container">
+                <div id="video-wrapper" class="video-wrapper" style="display:none;">
+                    <video id="video-player" muted autoplay playsinline style="display:none;"></video>
+                    
+                    <div id="video-overlay" class="video-overlay">
+                        <div class="placeholder-content">
+                            <div class="placeholder-icon">📹</div>
+                            <h3>选择设备开始播放</h3>
+                            <p>从左侧列表中选择一个摄像头</p>
+                        </div>
+                    </div>
+
+                    <div id="video-loading" class="video-overlay hidden">
+                        <div class="loading-spinner"></div>
+                        <p>正在连接视频流...</p>
+                    </div>
+
+                    <div id="video-error" class="video-overlay hidden">
+                        <div class="error-content">
+                            <div class="error-icon">⚠</div>
+                            <h3>连接失败</h3>
+                            <p id="error-message">无法连接到摄像头</p>
+                            <button class="btn btn-sm btn-primary" onclick="retryConnection()">
+                                重试
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="video-controls">
+                    <button id="btn-play" class="control-btn" disabled title="播放">
+                        ▶
+                    </button>
+                    <button id="btn-stop" class="control-btn" disabled title="停止">
+                        ⏹
+                    </button>
+                    <button id="btn-screenshot" class="control-btn" disabled title="截图">
+                        📷
+                    </button>
+                    <div class="control-info">
+                        <span id="stream-status">未连接</span>
+                    </div>
+                    <div class="control-volume">
+                        <input type="range" id="volume-slider" min="0" max="100" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设备详细信息 -->
+            <div class="device-details">
+                <h3>设备信息</h3>
+                <div id="device-details-content" class="details-content">
+                    <p class="no-details">暂无设备信息</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 登录对话框 -->
+    <div id="login-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>设备登录</h3>
+                <button class="modal-close" onclick="closeLoginModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="device-name">设备名称</label>
+                    <input type="text" id="device-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="device-ip">IP 地址</label>
+                    <input type="text" id="device-ip" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" value="admin" placeholder="默认: admin">
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" value="199010as" id="password" placeholder="请输入设备密码">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeLoginModal()">取消</button>
+                    <button class="btn btn-primary" onclick="loginDevice()">连接</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 本地化 rtsp-relay 浏览器端脚本，确保离线打包 -->
+    <script src="static/rtsp-relay-browser.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>

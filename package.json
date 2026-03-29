@@ -1,0 +1,94 @@
+{
+  "name": "onvif-camera-viewer",
+  "version": "1.0.0",
+  "description": "Electron app for ONVIF camera discovery and RTSP streaming",
+  "main": "main.js",
+  "productName": "ONVIFCameraViewer",
+  "appId": "com.onvif.camera.viewer",
+  "scripts": {
+    "start": "electron . --no-sandbox --disable-sandbox --disable-gpu --disable-dev-shm-usage",
+    "dev": "electron . --dev --no-sandbox --disable-sandbox --disable-gpu --disable-dev-shm-usage",
+    "build": "electron-builder --win --x64",
+    "build:win": "electron-builder --win --x64",
+    "build:dir": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.onvif.camera.viewer",
+    "productName": "ONVIFCameraViewer",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "node_modules/**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
+    "extraResources": [
+      {
+        "from": "static",
+        "to": "static"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
+  },
+  "keywords": [
+    "electron",
+    "onvif",
+    "rtsp",
+    "camera"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "depd": "^2.0.0",
+    "express": "^4.18.2",
+    "express-ws": "^5.0.2",
+    "ffmpeg-static": "^5.0.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "merge-descriptors": "^2.0.0",
+    "node-onvif": "^0.1.7",
+    "rtsp-relay": "^1.9.0",
+    "ws": "^8.16.0"
+  }
+}
