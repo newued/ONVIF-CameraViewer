@@ -1,198 +1,205 @@
 # ONVIF Camera Viewer
 
-## 项目概述
+## Project Overview
 
-ONVIF Camera Viewer 是一个基于 Electron 开发的桌面应用程序，用于发现和监控 ONVIF 兼容的网络摄像头。该应用提供了直观的用户界面，支持实时视频流播放、多设备管理和截图功能。
+ONVIF Camera Viewer is a desktop application developed based on Electron, used for discovering and monitoring ONVIF-compatible network cameras. The application provides an intuitive user interface that supports real-time video streaming, multi-device management, and screenshot functionality.
 
-### 主要功能
+### Main Features
 
-- 📹 **ONVIF 设备自动发现**：自动扫描网络中的 ONVIF 兼容摄像头
-- 🔄 **实时视频流**：通过 RTSP 协议获取和播放摄像头视频
-- 📷 **截图功能**：对当前直播画面进行截图并保存
-- 🖥️ **多设备管理**：支持同时添加和切换多个摄像头
-- 🔍 **设备信息展示**：显示设备详细信息和连接状态
+- 📹 **ONVIF Device Auto-discovery**: Automatically scans the network for ONVIF-compatible cameras
+- 🔄 **Real-time Video Streaming**: Acquires and plays camera video through the RTSP protocol
+- 📷 **Screenshot Functionality**: Takes screenshots of the current live feed and saves them
+- 🖥️ **Multi-device Management**: Supports adding and switching between multiple cameras
+- 🔍 **Device Information Display**: Shows device details and connection status
 
-## 技术栈
+## Technology Stack
 
-### 核心技术
-- **Electron**：桌面应用框架
-- **Node.js**：后端运行时
-- **ONVIF**：设备发现协议 (`node-onvif`)
-- **RTSP**：实时流传输协议
-- **FFmpeg**：视频流转码和转换 (`ffmpeg-static`)
-- **WebSocket**：实时数据传输
-- **jsmpeg**：HTML5 视频播放器
+### Core Technologies
+- **Electron**: Desktop application framework
+- **Node.js**: Backend runtime
+- **ONVIF**: Device discovery protocol (`node-onvif`)
+- **RTSP**: Real-time streaming protocol
+- **FFmpeg**: Video stream transcoding and conversion (`ffmpeg-static`)
+- **WebSocket**: Real-time data transmission
+- **jsmpeg**: HTML5 video player
 
-### 依赖包
-- `express`：Web 服务器
-- `express-ws`：WebSocket 支持
-- `fluent-ffmpeg`：FFmpeg 封装
-- `node-onvif`：ONVIF 设备发现
-- `rtsp-relay`：RTSP 流转发
-- `ws`：WebSocket 实现
-- `ffmpeg-static`：FFmpeg 二进制文件
-- `electron-builder`：应用打包工具
+### Dependencies
+- `express`: Web server
+- `express-ws`: WebSocket support
+- `fluent-ffmpeg`: FFmpeg wrapper
+- `node-onvif`: ONVIF device discovery
+- `rtsp-relay`: RTSP stream forwarding
+- `ws`: WebSocket implementation
+- `ffmpeg-static`: FFmpeg binary files
+- `electron-builder`: Application packaging tool
 
-## 项目结构
+## Project Structure
 
 ```
 ke_tenant_zzlq/
-├── electron-rtsp-local/         # RTSP 转发管理
-│   └── rtsp-relay-manager.js    # RTSP 流管理
-├── static/                      # 静态资源
-│   ├── jsmpeg.min.js            # JSMpeg 播放器
-│   └── rtsp-relay-browser.js    # 浏览器端 RTSP 处理
-├── index.html                   # 主界面
-├── index.js                     # 前端逻辑
-├── main.js                      # Electron 主进程
-├── onvif-discovery.js           # ONVIF 设备发现
-├── preload.js                   # 预加载脚本
-├── style.css                    # 样式文件
-├── package.json                 # 项目配置
-├── icon.png                     # 应用图标
-└── README.md                    # 项目说明
+├── assets/                      # Static resources
+│   └── static/                  # Static files
+│       ├── jsmpeg.min.js        # JSMpeg player
+│       └── rtsp-relay-browser.js # Browser-side RTSP handling
+├── src/                         # Source code
+│   ├── main/                    # Main process
+│   │   ├── main.js              # Electron main process
+│   │   ├── onvif-discovery.js   # ONVIF device discovery
+│   │   └── onvif-utils.js       # ONVIF utility functions
+│   ├── preload/                 # Preload scripts
+│   │   └── preload.js           # Preload script
+│   ├── renderer/                # Renderer process
+│   │   ├── index.html           # Main interface
+│   │   ├── index.js             # Frontend logic
+│   │   └── style.css            # Style file
+│   ├── electron-rtsp-local/     # RTSP relay management
+│   │   └── rtsp-relay-manager.js # RTSP stream management
+│   └── config.js                # Configuration file
+├── package.json                 # Project configuration
+├── icon.png                     # Application icon
+└── README.md                    # Project documentation
 ```
 
-## 安装和使用
+## Installation and Usage
 
-### 开发环境设置
+### Development Environment Setup
 
-1. **克隆项目**
+1. **Clone the project**
    ```bash
-   git clone <项目地址>
+   git clone <project URL>
    cd ke_tenant_zzlq
    ```
 
-2. **安装依赖**
+2. **Install dependencies**
    ```bash
-   # 使用 pnpm（推荐）
+   # Using pnpm (recommended)
    pnpm install
    
-   # 或使用 npm
+   # Or using npm
    npm install
    ```
 
-3. **运行开发模式**
+3. **Run in development mode**
    ```bash
-   # 开发模式（带调试工具）
+   # Development mode (with debug tools)
    pnpm run dev
    
-   # 正常模式
+   # Normal mode
    pnpm start
    ```
 
-### 打包应用
+### Packaging the Application
 
-1. **安装打包依赖**（如果尚未安装）
+1. **Install packaging dependencies** (if not already installed)
    ```bash
    pnpm install electron-builder --save-dev
    ```
 
-2. **执行打包**
+2. **Execute packaging**
    ```bash
-   # 打包 Windows 版本（生成安装包和便携版）
+   # Package Windows version (generates installer and portable version)
    pnpm run build
    
-   # 仅打包到目录（用于测试）
+   # Package only to directory (for testing)
    pnpm run build:dir
    ```
 
-3. **打包产物**
-   打包完成后，产物会生成在 `dist/` 目录：
-   - `ONVIFCameraViewer Setup 1.0.0.exe` - NSIS 安装包
-   - `ONVIFCameraViewer-1.0.0-portable.exe` - 便携版
+3. **Packaging results**
+   After packaging is complete, the results will be generated in the `dist/` directory:
+   - `ONVIFCameraViewer Setup 1.0.0.exe` - NSIS installer
+   - `ONVIFCameraViewer-1.0.0-portable.exe` - Portable version
 
-## 使用指南
+## Usage Guide
 
-### 首次使用
+### First-time Use
 
-1. **启动应用**：运行安装包或便携版
-2. **发现设备**：点击左侧的「发现设备」按钮，应用会自动扫描网络中的 ONVIF 摄像头
-3. **选择设备**：从设备列表中选择一个摄像头
-4. **设备登录**：输入设备的用户名和密码（默认用户名通常为 `admin`）
-5. **查看视频**：连接成功后，视频流会在主窗口显示
+1. **Start the application**: Run the installer or portable version
+2. **Discover devices**: Click the "Discover Devices" button on the left, and the application will automatically scan the network for ONVIF cameras
+3. **Select a device**: Choose a camera from the device list
+4. **Device login**: Enter the device's username and password (default username is usually `admin`)
+5. **View video**: After successful connection, the video stream will be displayed in the main window
 
-### 基本操作
+### Basic Operations
 
-- **播放/停止**：控制视频流的播放状态
-- **截图**：点击摄像头图标对当前画面进行截图
-- **音量调节**：通过滑块调整音量
-- **多设备管理**：可以同时添加多个摄像头，通过点击左侧的设备面板切换
+- **Play/Stop**: Control the playback status of the video stream
+- **Screenshot**: Click the camera icon to take a screenshot of the current screen
+- **Volume adjustment**: Adjust the volume through the slider
+- **Multi-device management**: You can add multiple cameras at the same time and switch between them by clicking the device panel on the left
 
-### 截图功能
+### Screenshot Function
 
-1. **连接摄像头**：确保视频流正在播放
-2. **点击截图按钮**：主界面控制栏中的 📷 图标
-3. **保存截图**：截图会自动下载到默认下载目录
-4. **文件名格式**：`screenshot_设备名_时间戳.png`
+1. **Connect to the camera**: Ensure the video stream is playing
+2. **Click the screenshot button**: The 📷 icon in the main interface control bar
+3. **Save the screenshot**: The screenshot will be automatically downloaded to the default download directory
+4. **File name format**: `screenshot_device name_timestamp.png`
 
-## 注意事项
+## Notes
 
-### 技术限制
+### Technical Limitations
 
-1. **FFmpeg 依赖**：应用内置了 FFmpeg 二进制文件，无需用户单独安装
-2. **网络要求**：设备需要与电脑在同一局域网内
-3. **权限要求**：某些摄像头可能需要管理员权限才能访问
-4. **性能考虑**：同时播放多个视频流可能会占用较高的 CPU 资源
+1. **FFmpeg dependency**: The application includes FFmpeg binary files, no need for users to install separately
+2. **Network requirements**: Devices need to be on the same local network as the computer
+3. **Permission requirements**: Some cameras may require administrator permissions to access
+4. **Performance considerations**: Playing multiple video streams simultaneously may consume high CPU resources
 
-### 常见问题
+### Common Issues
 
-1. **设备发现失败**
-   - 检查网络连接
-   - 确保摄像头已开机并连接到网络
-   - 检查摄像头是否支持 ONVIF 协议
+1. **Device discovery failure**
+   - Check network connection
+   - Ensure the camera is powered on and connected to the network
+   - Check if the camera supports ONVIF protocol
 
-2. **连接失败**
-   - 确认用户名和密码正确
-   - 检查摄像头 RTSP 服务是否开启
-   - 尝试使用不同的网络连接方式
+2. **Connection failure**
+   - Confirm the username and password are correct
+   - Check if the camera's RTSP service is enabled
+   - Try using a different network connection method
 
-3. **视频流卡顿**
-   - 检查网络带宽
-   - 减少同时播放的视频流数量
-   - 确保电脑性能足够
+3. **Video stream stuttering**
+   - Check network bandwidth
+   - Reduce the number of simultaneous video streams
+   - Ensure the computer performance is sufficient
 
-4. **截图功能不工作**
-   - 确保视频流正在正常播放
-   - 检查浏览器下载权限
-   - 尝试使用不同的浏览器（如果使用 Web 版本）
+4. **Screenshot function not working**
+   - Ensure the video stream is playing normally
+   - Check browser download permissions
+   - Try using a different browser (if using the web version)
 
-### 安全建议
+### Security Recommendations
 
-- **密码管理**：不要在公共场合保存摄像头密码
-- **网络安全**：建议在安全的网络环境中使用
-- **定期更新**：定期检查摄像头固件更新
-- **访问控制**：限制摄像头的网络访问范围
+- **Password management**: Do not save camera passwords in public places
+- **Network security**: It is recommended to use in a secure network environment
+- **Regular updates**: Regularly check for camera firmware updates
+- **Access control**: Restrict the network access range of cameras
 
-## 故障排除
+## Troubleshooting
 
-### 日志查看
+### Log Viewing
 
-应用运行时会在控制台输出日志信息，可以通过以下方式查看：
+The application outputs log information to the console, which can be viewed in the following ways:
 
-1. **开发模式**：启动应用时会自动打开 DevTools
-2. **生产模式**：可以通过 `Ctrl+Shift+I` 打开 DevTools
+1. **Development mode**: DevTools will automatically open when starting the application
+2. **Production mode**: DevTools can be opened via `Ctrl+Shift+I`
 
-### 常见错误
+### Common Errors
 
-| 错误信息 | 可能原因 | 解决方案 |
-|---------|---------|--------|
-| `FFmpeg not found` | FFmpeg 未正确打包 | 重新打包应用 |
-| `Connection failed` | 网络问题或设备离线 | 检查网络连接和设备状态 |
-| `Authentication failed` | 用户名或密码错误 | 确认设备凭据 |
-| `RTSP stream error` | RTSP 服务未开启 | 检查摄像头 RTSP 设置 |
+| Error Message | Possible Cause | Solution |
+|--------------|---------------|----------|
+| `FFmpeg not found` | FFmpeg not properly packaged | Repackage the application |
+| `Connection failed` | Network issue or device offline | Check network connection and device status |
+| `Authentication failed` | Incorrect username or password | Confirm device credentials |
+| `RTSP stream error` | RTSP service not enabled | Check camera RTSP settings |
 
-## 系统要求
+## System Requirements
 
-### 最低要求
-- **操作系统**：Windows 10/11
-- **处理器**：Intel i3 或 equivalent
-- **内存**：4GB RAM
-- **网络**：局域网连接
-- **存储空间**：200MB 可用空间
+### Minimum Requirements
+- **Operating System**: Windows 10/11
+- **Processor**: Intel i3 or equivalent
+- **Memory**: 4GB RAM
+- **Network**: Local area network connection
+- **Storage**: 200MB available space
 
-### 推荐配置
-- **处理器**：Intel i5 或 equivalent
-- **内存**：8GB RAM
-- **网络**：千兆局域网
-- **存储空间**：500MB 可用空间
+### Recommended Configuration
+- **Processor**: Intel i5 or equivalent
+- **Memory**: 8GB RAM
+- **Network**: Gigabit local area network
+- **Storage**: 500MB available space
