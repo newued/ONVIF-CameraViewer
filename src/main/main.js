@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 
+// 加载配置文件
+const config = require('../config');
+
 const fluentFfmpeg = require('fluent-ffmpeg');
 
 function setupFFmpeg() {
@@ -10,7 +13,7 @@ function setupFFmpeg() {
         const modPath = require.resolve('ffmpeg-static');
         const ffBinDir = path.dirname(modPath);
         const ffBin = path.join(ffBinDir, 'ffmpeg.exe');
-        
+
         if (fs.existsSync(ffBin)) {
             fluentFfmpeg.setFfmpegPath(ffBin);
             process.env.FFMPEG_BINARY = ffBin;
@@ -25,7 +28,7 @@ function setupFFmpeg() {
 
 setupFFmpeg();
 
-const RtspRelayManager = require('./electron-rtsp-local/rtsp-relay-manager');
+const RtspRelayManager = require('../electron-rtsp-local/rtsp-relay-manager');
 const rtspRelayManager = new RtspRelayManager();
 
 const OnvifDiscovery = require('./onvif-discovery');
@@ -35,18 +38,21 @@ let onvifDiscovery;
 let expressApp;
 let server;
 
+// 使用配置文件中的端口号
+const PORT = config.PORT;
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, '../preload/preload.js'),
             contextIsolation: true,
             nodeIntegration: false
         }
     });
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
     if (process.argv.includes('--dev')) {
         mainWindow.webContents.openDevTools();
@@ -59,11 +65,11 @@ app.whenReady().then(async () => {
     onvifDiscovery = new OnvifDiscovery();
 
     expressApp = express();
-    expressApp.use('/static', require('express').static(path.join(__dirname, 'static')));
+    expressApp.use('/static', require('express').static(path.join(__dirname, '../../assets/static')));
     require('express-ws')(expressApp);
 
     rtspRelayManager.init(expressApp);
-    rtspRelayManager.startServer(9999);
+    rtspRelayManager.startServer(PORT);
 
     expressApp.ws('/api/stream', (ws, req) => {
         const rtspUrl = req.query.url;
@@ -136,7 +142,7 @@ function setupIpcHandlers() {
         console.log('=== DEBUG: IPC start-stream ===');
         console.log('rtspUrl:', rtspUrl);
 
-        const wsUrl = `ws://localhost:9999/api/stream?url=${encodeURIComponent(rtspUrl)}`;
+        const wsUrl = `ws://localhost:${PORT}/api/stream?url=${encodeURIComponent(rtspUrl)}`;
         console.log('Generated WebSocket URL:', wsUrl);
         return {
             streamId: 'rtsp-relay-' + Date.now(),

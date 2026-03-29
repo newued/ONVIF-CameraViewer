@@ -3,12 +3,15 @@
 const express = require('express');
 const ews = require('express-ws');
 
+// 加载配置文件
+const config = require('../config');
+
 class RtspRelayManager {
     constructor() {
         this.expressApp = null;
         this.proxy = null;
         this.server = null;
-        this.port = 9999;
+        this.port = config.PORT;
         this.streams = new Map();
         this.rtspRelayModule = require('rtsp-relay');
     }

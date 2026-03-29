@@ -1,4 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
+// 暴露端口信息给渲染进程
+contextBridge.exposeInMainWorld('appConfig', {
+    PORT: 9999
+});
 
 contextBridge.exposeInMainWorld('electronAPI', {
     // ONVIF 设备发现

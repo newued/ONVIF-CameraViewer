@@ -2,10 +2,9 @@ const AppState = {
     devices: [],
     currentDevice: null,
     currentStreamId: null,
-    flvPlayer: null,
+    currentPlayer: null,
     isDiscovering: false,
-    streams: [],
-    activeStreamIndex: -1
+    currentLoginInfo: null
 };
 
 const elements = {
@@ -29,7 +28,7 @@ const elements = {
     deviceIpInput: document.getElementById('device-ip'),
     usernameInput: document.getElementById('username'),
     passwordInput: document.getElementById('password'),
-    streamsContainer: document.getElementById('streams-container')
+    videoWrapper: document.getElementById('video-wrapper')
 };
 
 function initApp() {
@@ -174,8 +173,15 @@ async function loginDevice() {
         const streamResult = await window.electronAPI.startStream(streamInfo.rtspUrl, streamInfo.rtspUrls);
         AppState.currentStreamId = streamResult.streamId;
         AppState.currentDevice = streamInfo;
+        AppState.currentLoginInfo = {
+            deviceId,
+            deviceName,
+            deviceIp,
+            username,
+            password
+        };
         updateDeviceInfo(deviceName, deviceIp, streamInfo);
-        await createStreamPanel(streamResult.wsUrl, deviceName, streamInfo.rtspUrl);
+        await loadStream(streamResult.wsUrl, deviceName, streamInfo.rtspUrl);
     } catch (error) {
         console.error('Failed to connect to device:', error);
         showVideoError(error.message);
@@ -187,67 +193,66 @@ async function loginDevice() {
     }
 }
 
-function createStreamPanel(wsUrl, label, rtspUrl) {
-    return new Promise(function(resolve, reject) {
-        const container = elements.streamsContainer;
-        if (!container) {
-            reject(new Error('Streams container not found'));
+async function loadStream(wsUrl, label, rtspUrl) {
+    return new Promise(function (resolve, reject) {
+        // 清理之前的播放器
+        if (AppState.currentPlayer) {
+            if (typeof AppState.currentPlayer.destroy === 'function') {
+                AppState.currentPlayer.destroy();
+            }
+            const existingCanvas = document.getElementById('stream-canvas');
+            if (existingCanvas) {
+                existingCanvas.remove();
+            }
+        }
+
+        // 创建新的 canvas 元素
+        const videoWrapper = document.getElementById('video-wrapper');
+        if (!videoWrapper) {
+            reject(new Error('Video wrapper not found'));
             return;
         }
-        const streamIndex = AppState.streams.length;
-        const panel = document.createElement('div');
-        panel.className = 'stream-panel';
-        panel.dataset.streamIndex = streamIndex;
-        panel.onclick = function() {
-            switchToStream(streamIndex);
-        };
-        
-        panel.innerHTML = `
-            <div class="stream-panel-header">
-                <span class="stream-label">${label}</span>
-                <button class="stream-close-btn" onclick="event.stopPropagation(); removeStream('${streamIndex}')">×</button>
-            </div>
-            <canvas class="stream-canvas" width="320" height="180"></canvas>
-            <div class="stream-status-indicator"></div>
-        `;
-        
-        container.appendChild(panel);
-        
-        const canvas = panel.querySelector('.stream-canvas');
-        
+
+        const canvas = document.createElement('canvas');
+        canvas.id = 'stream-canvas';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.objectFit = 'contain';
+        canvas.style.display = 'block';
+
+        // 添加 canvas 到视频容器
+        videoWrapper.appendChild(canvas);
+        elements.videoPlayer.style.display = 'none';
+
         if (typeof window.loadPlayer === 'function') {
             window.loadPlayer({
                 url: wsUrl,
                 canvas: canvas,
                 disconnectThreshold: 5000,
                 maxReconnectAttempts: 10,
-                onDisconnect: function(player) {
+                onDisconnect: function (player) {
                     console.log('Stream disconnected:', label);
-                    panel.querySelector('.stream-status-indicator').classList.add('disconnected');
                     updateStreamStatus('连接断开', 'error');
                 }
-            }).then(function(result) {
+            }).then(function (result) {
                 console.log('Stream playing:', label);
-                var actualPlayer = result.player || result;
-                AppState.streams.push({
-                    id: 'stream-' + Date.now(),
-                    wsUrl: wsUrl,
-                    rtspUrl: rtspUrl,
-                    panel: panel,
-                    canvas: canvas,
-                    player: actualPlayer,
-                    playerWrapper: result
-                });
-                switchToStream(streamIndex);
+                AppState.currentPlayer = result;
+
+                // 显示视频画面
                 elements.videoOverlay.classList.add('hidden');
                 elements.videoLoading.classList.add('hidden');
                 elements.videoError.classList.add('hidden');
+                elements.videoWrapper.style.display = 'block';
+
+                // 启用控制按钮
+                elements.btnPlay.disabled = true;
+                elements.btnStop.disabled = false;
                 elements.btnScreenshot.disabled = false;
                 updateStreamStatus('已连接', 'connected');
                 resolve();
-            }).catch(function(err) {
+            }).catch(function (err) {
                 console.error('Failed to load player:', err);
-                panel.querySelector('.stream-status-indicator').classList.add('error');
+                showVideoError('无法加载视频播放器');
                 reject(err);
             });
         } else {
@@ -256,111 +261,76 @@ function createStreamPanel(wsUrl, label, rtspUrl) {
     });
 }
 
-function switchToStream(index) {
-    if (index < 0 || index >= AppState.streams.length) return;
-    AppState.activeStreamIndex = index;
-    document.querySelectorAll('.stream-panel').forEach(function(p, i) {
-        p.classList.toggle('active', i === index);
-    });
-    const stream = AppState.streams[index];
-    if (stream && stream.rtspUrl) {
-        const urlParts = stream.rtspUrl.split('/');
-        const ipMatch = stream.rtspUrl.match(/:\/\/([^:\/]+)/);
-        if (ipMatch) {
-            updateDeviceInfo(
-                document.querySelector('.stream-panel[data-stream-index="' + index + '"] .stream-label').textContent,
-                ipMatch[1],
-                { rtspUrl: stream.rtspUrl, port: 554 }
-            );
-        }
-    }
-    updateStreamStatus('已连接', 'connected');
-}
-
-function removeStream(index) {
-    const stream = AppState.streams[index];
-    if (stream) {
-        if (stream.playerWrapper && typeof stream.playerWrapper.destroy === 'function') {
-            stream.playerWrapper.destroy();
-        } else if (stream.player && typeof stream.player.destroy === 'function') {
-            stream.player.destroy();
-        }
-        if (stream.panel) {
-            stream.panel.remove();
-        }
-        AppState.streams.splice(index, 1);
-        if (AppState.activeStreamIndex === index) {
-            AppState.activeStreamIndex = AppState.streams.length > 0 ? 0 : -1;
-            if (AppState.activeStreamIndex >= 0) {
-                switchToStream(0);
-            }
-        }
-        for (var i = index; i < AppState.streams.length; i++) {
-            AppState.streams[i].panel.dataset.streamIndex = i;
-        }
-        if (AppState.streams.length === 0) {
-            elements.videoOverlay.classList.remove('hidden');
-            updateStreamStatus('未连接');
-        }
-    }
-}
-
-window.removeStream = removeStream;
-
-function playStream() {
-    if (AppState.flvPlayer) {
+async function playStream() {
+    if (AppState.currentPlayer) {
         console.log('RTSP player is already playing');
         elements.btnPlay.disabled = true;
         elements.btnStop.disabled = false;
+        return;
+    }
+
+    if (AppState.currentLoginInfo) {
+        console.log('Attempting to reconnect to device...');
+        try {
+            showVideoLoading();
+            updateStreamStatus('正在连接...');
+            const { deviceId, deviceName, deviceIp, username, password } = AppState.currentLoginInfo;
+            console.log(`Reconnecting to device: ${deviceName} (${deviceIp})`);
+            const streamInfo = await window.electronAPI.getStreamUri(deviceId, username, password);
+            if (streamInfo.error && !streamInfo.fallback) {
+                throw new Error(streamInfo.error);
+            }
+            console.log('Stream info:', streamInfo);
+            const streamResult = await window.electronAPI.startStream(streamInfo.rtspUrl, streamInfo.rtspUrls);
+            AppState.currentStreamId = streamResult.streamId;
+            AppState.currentDevice = streamInfo;
+            updateDeviceInfo(deviceName, deviceIp, streamInfo);
+            await loadStream(streamResult.wsUrl, deviceName, streamInfo.rtspUrl);
+        } catch (error) {
+            console.error('Failed to reconnect to device:', error);
+            showVideoError(error.message);
+            updateStreamStatus('连接失败', 'error');
+            if (AppState.currentStreamId) {
+                await window.electronAPI.stopStream(AppState.currentStreamId);
+                AppState.currentStreamId = null;
+            }
+        }
+    } else {
+        console.log('No device login information available');
+        elements.videoOverlay.classList.remove('hidden');
+        updateStreamStatus('未连接');
     }
 }
 
 async function stopStream() {
     try {
-        if (AppState.flvPlayer) {
-            if (typeof AppState.flvPlayer.destroy === 'function') {
-                AppState.flvPlayer.destroy();
+        if (AppState.currentPlayer) {
+            if (typeof AppState.currentPlayer.destroy === 'function') {
+                AppState.currentPlayer.destroy();
             }
-            const canvas = document.getElementById('jsmpeg-canvas');
+            const canvas = document.getElementById('stream-canvas');
             if (canvas) {
                 canvas.remove();
             }
-            const videoPlayer = document.getElementById('video-player');
-            if (videoPlayer) {
-                videoPlayer.style.display = '';
-            }
-            AppState.flvPlayer = null;
+            AppState.currentPlayer = null;
         }
-        
-        for (var i = 0; i < AppState.streams.length; i++) {
-            var stream = AppState.streams[i];
-            if (stream.playerWrapper && typeof stream.playerWrapper.destroy === 'function') {
-                stream.playerWrapper.destroy();
-            } else if (stream.player && typeof stream.player.destroy === 'function') {
-                stream.player.destroy();
-            }
-            if (stream.panel) {
-                stream.panel.remove();
-            }
-        }
-        AppState.streams = [];
-        AppState.activeStreamIndex = -1;
-        
+
         if (AppState.currentStreamId) {
             await window.electronAPI.stopStream(AppState.currentStreamId);
             AppState.currentStreamId = null;
         }
         AppState.currentDevice = null;
-        
+
         elements.videoOverlay.classList.remove('hidden');
         elements.videoLoading.classList.add('hidden');
         elements.videoError.classList.add('hidden');
-        elements.btnPlay.disabled = true;
+        elements.videoWrapper.style.display = 'none';
+        elements.btnPlay.disabled = false;
         elements.btnStop.disabled = true;
         elements.btnScreenshot.disabled = true;
         elements.deviceInfo.textContent = '';
         elements.deviceDetails.innerHTML = '<p class="no-details">暂无设备信息</p>';
-        
+
         updateStreamStatus('未连接');
         console.log('Stream stopped');
     } catch (error) {
@@ -372,98 +342,93 @@ function handleVolumeChange(event) {
     const volume = event.target.value / 100;
     if (elements.videoPlayer) {
         elements.videoPlayer.volume = volume;
-        elements.videoPlayer.muted = volume === 0;
     }
 }
 
 function showVideoLoading() {
-    elements.videoOverlay.classList.remove('hidden');
+    elements.videoOverlay.classList.add('hidden');
     elements.videoLoading.classList.remove('hidden');
     elements.videoError.classList.add('hidden');
 }
 
 function showVideoError(message) {
-    elements.videoOverlay.classList.remove('hidden');
+    elements.videoOverlay.classList.add('hidden');
     elements.videoLoading.classList.add('hidden');
     elements.videoError.classList.remove('hidden');
     elements.errorMessage.textContent = message;
 }
 
-async function retryConnection() {
-    const activeDevice = document.querySelector('.device-item.active');
-    if (activeDevice) {
-        const deviceId = activeDevice.dataset.deviceId;
-        selectDevice(deviceId);
-    }
-}
-
-function updateDeviceInfo(name, ip, streamInfo) {
-    elements.deviceInfo.textContent = `📍 ${name} (${ip})`;
-    const details = `
-        <div class="detail-row">
-            <span class="detail-label">设备名称</span>
-            <span class="detail-value">${name || 'Unknown'}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">IP地址</span>
-            <span class="detail-value">${ip || 'Unknown'}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">RTSP地址</span>
-            <span class="detail-value" style="font-family: monospace; font-size: 11px;">${streamInfo.rtspUrl || 'Unknown'}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">流端口</span>
-            <span class="detail-value">${streamInfo.port || 554}</span>
-        </div>
-        ${streamInfo.fallback ? `
-        <div class="detail-row">
-            <span class="detail-label">连接方式</span>
-            <span class="detail-value" style="color: #ffc107;">降级模式</span>
-        </div>
-        ` : ''}
-    `;
-    elements.deviceDetails.innerHTML = details;
-}
-
-function updateStreamStatus(text, status) {
-    const statusClass = status ? `status-dot ${status}` : 'status-dot';
-    elements.streamStatus.innerHTML = `
-        <span class="${statusClass}"></span>
+function updateStreamStatus(text, type) {
+    const statusElement = elements.streamStatus;
+    statusElement.innerHTML = `
+        <span class="status-dot ${type || ''}"></span>
         ${text}
     `;
 }
 
+function updateDeviceInfo(name, ip, streamInfo) {
+    elements.deviceInfo.textContent = `${name} (${ip})`;
+    elements.deviceDetails.innerHTML = `
+        <div class="detail-row">
+            <span class="detail-label">设备名称</span>
+            <span class="detail-value">${name}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">IP 地址</span>
+            <span class="detail-value">${ip}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">RTSP URL</span>
+            <span class="detail-value">${streamInfo.rtspUrl}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">端口</span>
+            <span class="detail-value">${streamInfo.port}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">可用流地址</span>
+            <span class="detail-value">${streamInfo.rtspUrls ? streamInfo.rtspUrls.length : 0} 个</span>
+        </div>
+    `;
+}
+
 function takeScreenshot() {
-    if (AppState.activeStreamIndex < 0 || AppState.activeStreamIndex >= AppState.streams.length) {
+    if (!AppState.currentPlayer) {
         console.error('No active stream to capture');
         return;
     }
 
-    const stream = AppState.streams[AppState.activeStreamIndex];
-    if (!stream || !stream.canvas) {
+    const canvas = document.getElementById('stream-canvas');
+    if (!canvas) {
         console.error('No canvas found for active stream');
         return;
     }
 
     try {
-        const canvas = stream.canvas;
         const dataUrl = canvas.toDataURL('image/png');
-        
+
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const deviceName = stream.panel.querySelector('.stream-label').textContent.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+        const deviceName = elements.deviceInfo.textContent.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
         const filename = `screenshot_${deviceName}_${timestamp}.png`;
-        
+
         const link = document.createElement('a');
         link.download = filename;
         link.href = dataUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         console.log('Screenshot saved:', filename);
     } catch (error) {
         console.error('Failed to take screenshot:', error);
+    }
+}
+
+function retryConnection() {
+    const activeDevice = document.querySelector('.device-item.active');
+    if (activeDevice) {
+        const deviceId = activeDevice.dataset.deviceId;
+        selectDevice(deviceId);
     }
 }
 
