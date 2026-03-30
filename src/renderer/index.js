@@ -28,7 +28,9 @@ const elements = {
     deviceIpInput: document.getElementById('device-ip'),
     usernameInput: document.getElementById('username'),
     passwordInput: document.getElementById('password'),
-    videoWrapper: document.getElementById('video-wrapper')
+    videoWrapper: document.getElementById('video-wrapper'),
+    rtspUrlInput: document.getElementById('rtsp-url-input'),
+    btnTestRtsp: document.getElementById('btn-test-rtsp')
 };
 
 function initApp() {
@@ -43,6 +45,7 @@ function setupEventListeners() {
     elements.btnStop.addEventListener('click', stopStream);
     elements.btnScreenshot.addEventListener('click', takeScreenshot);
     elements.volumeSlider.addEventListener('input', handleVolumeChange);
+    elements.btnTestRtsp.addEventListener('click', testRtspConnection);
 }
 
 async function startDiscovery() {
@@ -430,6 +433,80 @@ function retryConnection() {
         const deviceId = activeDevice.dataset.deviceId;
         selectDevice(deviceId);
     }
+}
+
+async function testRtspConnection() {
+    const rtspUrl = elements.rtspUrlInput.value.trim();
+    if (!rtspUrl) {
+        alert('请输入 RTSP 地址');
+        return;
+    }
+
+    try {
+        // 显示测试状态
+        updateStreamStatus('测试连接中...');
+        elements.btnTestRtsp.disabled = true;
+        elements.btnTestRtsp.innerHTML = '<span class="btn-icon">⏳</span> 测试中...';
+
+        console.log('Testing RTSP connection:', rtspUrl);
+        
+        // 直接尝试加载视频流，因为只有能播放才算流可用
+        try {
+            showVideoLoading();
+            const streamResult = await window.electronAPI.startStream(rtspUrl, [rtspUrl]);
+            AppState.currentStreamId = streamResult.streamId;
+            AppState.currentDevice = {
+                rtspUrl: rtspUrl,
+                rtspUrls: [rtspUrl],
+                ip: extractIpFromRtspUrl(rtspUrl),
+                port: 554
+            };
+            AppState.currentLoginInfo = {
+                deviceId: 'manual-rtsp',
+                deviceName: '手动输入 RTSP',
+                deviceIp: extractIpFromRtspUrl(rtspUrl),
+                username: extractUsernameFromRtspUrl(rtspUrl),
+                password: extractPasswordFromRtspUrl(rtspUrl)
+            };
+            updateDeviceInfo('手动输入 RTSP', extractIpFromRtspUrl(rtspUrl), AppState.currentDevice);
+            await loadStream(streamResult.wsUrl, '手动输入 RTSP', rtspUrl);
+            
+            // 视频流加载成功，显示成功提示
+            updateStreamStatus('连接成功', 'connected');
+            alert('测试连接成功！视频流已成功加载。');
+        } catch (loadError) {
+            console.error('Failed to load stream after test:', loadError);
+            showVideoError('测试连接失败：无法加载视频流');
+            updateStreamStatus('连接失败', 'error');
+            alert(`测试连接失败: ${loadError.message || '无法加载视频流'}`);
+        }
+    } catch (error) {
+        console.error('Failed to test RTSP connection:', error);
+        updateStreamStatus('连接失败', 'error');
+        alert(`测试连接失败: ${error.message || '未知错误'}`);
+    } finally {
+        // 恢复按钮状态
+        elements.btnTestRtsp.disabled = false;
+        elements.btnTestRtsp.innerHTML = '测试连接';
+    }
+}
+
+// 从 RTSP URL 中提取 IP 地址
+function extractIpFromRtspUrl(url) {
+    const match = url.match(/rtsp:\/\/[^@]+@([^:]+):/);
+    return match ? match[1] : 'Unknown IP';
+}
+
+// 从 RTSP URL 中提取用户名
+function extractUsernameFromRtspUrl(url) {
+    const match = url.match(/rtsp:\/\/([^:]+):/);
+    return match ? match[1] : 'Unknown';
+}
+
+// 从 RTSP URL 中提取密码
+function extractPasswordFromRtspUrl(url) {
+    const match = url.match(/rtsp:\/\/[^:]+:([^@]+)@/);
+    return match ? match[1] : '';
 }
 
 window.selectDevice = selectDevice;

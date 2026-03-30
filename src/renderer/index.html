@@ -45,6 +45,11 @@
             </div>
 
             <div class="video-container">
+                <div class="rtsp-input-section">
+                    <input type="text" id="rtsp-url-input" placeholder="粘贴 RTSP 地址" class="rtsp-input">
+                    <button id="btn-test-rtsp" class="btn btn-sm btn-primary">测试连接</button>
+                </div>
+                
                 <div id="video-wrapper" class="video-wrapper" style="display:none;">
                     <video id="video-player" muted autoplay playsinline style="display:none;"></video>
                     
@@ -52,7 +57,7 @@
                         <div class="placeholder-content">
                             <div class="placeholder-icon">📹</div>
                             <h3>选择设备开始播放</h3>
-                            <p>从左侧列表中选择一个摄像头</p>
+                            <p>从左侧列表中选择一个摄像头或直接输入 RTSP 地址</p>
                         </div>
                     </div>
 

@@ -177,6 +177,29 @@ body {
     overflow: hidden;
 }
 
+/* RTSP 输入区域 */
+.rtsp-input-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.rtsp-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--background-lighter);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.rtsp-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
 .video-wrapper {
     flex: 1;
     background-color: #000;
