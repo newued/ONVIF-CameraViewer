@@ -32,6 +32,7 @@ const RtspRelayManager = require('../electron-rtsp-local/rtsp-relay-manager');
 const rtspRelayManager = new RtspRelayManager();
 
 const OnvifDiscovery = require('./onvif-discovery');
+const StreamDetector = require('./stream-detector');
 
 let mainWindow;
 let onvifDiscovery;
@@ -125,6 +126,18 @@ app.whenReady().then(async () => {
 
     expressApp.ws('/api/stream', (ws, req) => {
         const rtspUrl = req.query.url;
+        const streamInfoStr = req.query.streamInfo;
+        let streamInfo = null;
+        
+        if (streamInfoStr) {
+            try {
+                streamInfo = JSON.parse(decodeURIComponent(streamInfoStr));
+                console.log('[WebSocket] Stream info received:', streamInfo);
+            } catch (error) {
+                console.error('[WebSocket] Failed to parse stream info:', error);
+            }
+        }
+        
         console.log('[WebSocket] New connection for:', rtspUrl);
         console.log('[WebSocket] URL:', req.url);
         console.log('[WebSocket] Query:', req.query);
@@ -145,7 +158,7 @@ app.whenReady().then(async () => {
         ws.on('close', () => {
             console.log('[WebSocket] Connection closed');
         });
-        rtspRelayManager.createProxyHandler(ws, rtspUrl);
+        rtspRelayManager.createProxyHandler(ws, rtspUrl, streamInfo);
     });
 
     setupIpcHandlers();
@@ -265,6 +278,18 @@ function setupIpcHandlers() {
         } catch (error) {
             console.error('[IPC] Failed to test RTSP connection:', error);
             return { success: false, error: error.message || 'Unknown error' };
+        }
+    });
+
+    ipcMain.handle('detect-stream-info', async (event, rtspUrl) => {
+        try {
+            console.log('[IPC] Detecting stream info for:', rtspUrl);
+            const info = await StreamDetector.detectStreamInfo(rtspUrl);
+            console.log('[IPC] Stream info detected successfully');
+            return info;
+        } catch (error) {
+            console.error('[IPC] Failed to detect stream info:', error);
+            return null;
         }
     });
 }

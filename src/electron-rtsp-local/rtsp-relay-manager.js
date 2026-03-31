@@ -41,35 +41,32 @@ class RtspRelayManager {
         return `ws://localhost:${this.port}/api/stream?url=${encodeURIComponent(rtspUrl)}`;
     }
 
-    createProxyHandler(ws, rtspUrl) {
+    createProxyHandler(ws, rtspUrl, streamInfo) {
         if (!this.proxy) {
             throw new Error('RTSP relay proxy is not initialized');
         }
 
         console.log('[RtspRelayManager] Creating stream for:', rtspUrl);
+        console.log('[RtspRelayManager] Stream info:', streamInfo);
+
+        // 导入StreamDetector以获取推荐的转码参数
+        const StreamDetector = require('../main/stream-detector');
+        const ffmpegOptions = StreamDetector.getRecommendedTranscodeOptions(streamInfo);
+
+        // 确保输入URL正确设置
+        ffmpegOptions['-i'] = rtspUrl;
 
         const handler = this.proxy({
             url: rtspUrl,
             useNativeFFmpeg: true,
             verbose: true,
             transport: 'tcp',
-            // 添加FFmpeg配置，支持更多编码格式
-            ffmpegOptions: {
-                '-rtsp_transport': 'tcp',
-                '-max_delay': '5000000',
-                '-re': '',
-                '-i': rtspUrl,
-                '-c:v': 'mpeg1video',
-                '-b:v': '800k',
-                '-r': '25',
-                '-f': 'mpegts',
-                '-preset': 'ultrafast',
-                '-tune': 'zerolatency'
-            }
+            // 使用动态生成的FFmpeg配置
+            ffmpegOptions: ffmpegOptions
         });
 
         const streamKey = rtspUrl;
-        this.streams.set(streamKey, { ws, handler });
+        this.streams.set(streamKey, { ws, handler, streamInfo });
 
         ws.on('close', () => {
             this.streams.delete(streamKey);

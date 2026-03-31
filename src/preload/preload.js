@@ -21,5 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getWsUrl: (streamId) => ipcRenderer.invoke('get-ws-url', streamId),
     
     // RTSP 连接测试
-    testRtspConnection: (rtspUrl) => ipcRenderer.invoke('test-rtsp-connection', rtspUrl)
+    testRtspConnection: (rtspUrl) => ipcRenderer.invoke('test-rtsp-connection', rtspUrl),
+    
+    // 流信息检测
+    detectStreamInfo: (rtspUrl) => ipcRenderer.invoke('detect-stream-info', rtspUrl)
 });

@@ -273,7 +273,7 @@ async function loginDevice() {
 }
 
 async function loadStream(wsUrl, label, rtspUrl) {
-    return new Promise(function (resolve, reject) {
+    return new Promise(async function (resolve, reject) {
         // 清理之前的播放器
         if (AppState.currentPlayer) {
             if (typeof AppState.currentPlayer.destroy === 'function') {
@@ -303,9 +303,36 @@ async function loadStream(wsUrl, label, rtspUrl) {
         videoWrapper.appendChild(canvas);
         elements.videoPlayer.style.display = 'none';
 
+        // 检测流信息
+        let streamInfo = null;
+        try {
+            console.log('Detecting stream info for:', rtspUrl);
+            streamInfo = await window.electronAPI.detectStreamInfo(rtspUrl);
+            console.log('Stream info:', streamInfo);
+        } catch (error) {
+            console.error('Failed to detect stream info:', error);
+        }
+
+        // 显示流信息
+        if (streamInfo) {
+            const videoStream = streamInfo.streams && streamInfo.streams.find(stream => stream.codec_type === 'video');
+            if (videoStream) {
+                console.log('Video codec:', videoStream.codec_name);
+                console.log('Resolution:', videoStream.width, 'x', videoStream.height);
+                console.log('Frame rate:', videoStream.r_frame_rate);
+            }
+        }
+
+        // 创建包含streamInfo的WebSocket URL
+        let wsUrlWithStreamInfo = wsUrl;
+        if (streamInfo) {
+            wsUrlWithStreamInfo = wsUrl + '&streamInfo=' + encodeURIComponent(JSON.stringify(streamInfo));
+            console.log('WebSocket URL with stream info:', wsUrlWithStreamInfo);
+        }
+
         if (typeof window.loadPlayer === 'function') {
             window.loadPlayer({
-                url: wsUrl,
+                url: wsUrlWithStreamInfo,
                 canvas: canvas,
                 disconnectThreshold: 15000, // 增加超时阈值
                 maxReconnectAttempts: 20, // 增加最大重连次数
