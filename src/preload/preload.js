@@ -1,7 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
+
+// 直接硬编码配置值，避免在预加载脚本中使用node模块
+const config = { PORT: 9999 };
+
 // 暴露端口信息给渲染进程
 contextBridge.exposeInMainWorld('appConfig', {
-    PORT: 9999
+    PORT: config.PORT || 9999
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {

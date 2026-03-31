@@ -174,38 +174,99 @@ async function loginDevice() {
         }
         console.log('Stream info:', streamInfo);
         
-        // 尝试使用所有可用的 RTSP 地址
-        for (const rtspUrl of streamInfo.rtspUrls) {
-            try {
-                console.log('Trying RTSP URL:', rtspUrl);
-                const streamResult = await window.electronAPI.startStream(rtspUrl, streamInfo.rtspUrls);
-                AppState.currentStreamId = streamResult.streamId;
-                AppState.currentDevice = streamInfo;
-                AppState.currentLoginInfo = {
-                    deviceId,
-                    deviceName,
-                    deviceIp,
-                    username,
-                    password
-                };
-                updateDeviceInfo(deviceName, deviceIp, streamInfo);
-                await loadStream(streamResult.wsUrl, deviceName, rtspUrl);
-                updateStreamStatus('已连接', 'connected');
-                return;
-            } catch (error) {
-                console.error('Failed to connect with URL:', rtspUrl, error);
-                // 继续尝试下一个 URL
+        // 尝试使用所有可用的 RTSP 地址（并行尝试，带超时管理）
+        const maxConcurrentAttempts = 3; // 最大并发尝试数
+        const timeoutPerAttempt = 10000; // 每个尝试的超时时间（毫秒）
+        
+        let successfulConnection = null;
+        let attemptCount = 0;
+        
+        // 分批次并行尝试
+        for (let i = 0; i < streamInfo.rtspUrls.length; i += maxConcurrentAttempts) {
+            const batchUrls = streamInfo.rtspUrls.slice(i, i + maxConcurrentAttempts);
+            const batchPromises = batchUrls.map(async (rtspUrl) => {
+                attemptCount++;
+                console.log(`Attempt ${attemptCount}/${streamInfo.rtspUrls.length}: Trying RTSP URL:`, rtspUrl);
+                
+                try {
+                    // 创建带超时的连接尝试
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error(`Connection timeout after ${timeoutPerAttempt}ms`)), timeoutPerAttempt)
+                    );
+                    
+                    const streamResult = await Promise.race([
+                        window.electronAPI.startStream(rtspUrl, streamInfo.rtspUrls),
+                        timeoutPromise
+                    ]);
+                    
+                    console.log('Successfully connected with URL:', rtspUrl);
+                    return {
+                        success: true,
+                        streamResult,
+                        rtspUrl
+                    };
+                } catch (error) {
+                    console.error('Failed to connect with URL:', rtspUrl, error);
+                    return {
+                        success: false,
+                        error: error.message
+                    };
+                }
+            });
+            
+            const batchResults = await Promise.all(batchPromises);
+            successfulConnection = batchResults.find(result => result.success);
+            
+            if (successfulConnection) {
+                break;
             }
+        }
+        
+        if (successfulConnection) {
+            const { streamResult, rtspUrl } = successfulConnection;
+            AppState.currentStreamId = streamResult.streamId;
+            AppState.currentDevice = streamInfo;
+            AppState.currentLoginInfo = {
+                deviceId,
+                deviceName,
+                deviceIp,
+                username,
+                password
+            };
+            updateDeviceInfo(deviceName, deviceIp, streamInfo);
+            await loadStream(streamResult.wsUrl, deviceName, rtspUrl);
+            updateStreamStatus('已连接', 'connected');
+            return;
         }
         
         // 如果所有 URL 都失败
         throw new Error('Failed to connect to device with any RTSP URL');
     } catch (error) {
         console.error('Failed to connect to device:', error);
-        showVideoError(error.message);
+        
+        // 错误分类和处理
+        const errorMessage = error.message || '未知错误';
+        let userFriendlyMessage = errorMessage;
+        
+        // 分类错误类型
+        if (errorMessage.includes('timeout')) {
+            userFriendlyMessage = '连接超时，请检查网络连接和设备状态';
+        } else if (errorMessage.includes('authentication') || errorMessage.includes('Unauthorized')) {
+            userFriendlyMessage = '认证失败，请检查用户名和密码';
+        } else if (errorMessage.includes('connection') || errorMessage.includes('connect')) {
+            userFriendlyMessage = '连接失败，请检查设备是否在线';
+        } else if (errorMessage.includes('stream') || errorMessage.includes('Stream')) {
+            userFriendlyMessage = '流地址无效，请检查设备配置';
+        }
+        
+        showVideoError(userFriendlyMessage);
         updateStreamStatus('连接失败', 'error');
         if (AppState.currentStreamId) {
-            await window.electronAPI.stopStream(AppState.currentStreamId);
+            try {
+                await window.electronAPI.stopStream(AppState.currentStreamId);
+            } catch (stopError) {
+                console.error('Failed to stop stream during error handling:', stopError);
+            }
             AppState.currentStreamId = null;
         }
     }
@@ -306,10 +367,30 @@ async function playStream() {
             await loadStream(streamResult.wsUrl, deviceName, streamInfo.rtspUrl);
         } catch (error) {
             console.error('Failed to reconnect to device:', error);
-            showVideoError(error.message);
+            
+            // 错误分类和处理
+            const errorMessage = error.message || '未知错误';
+            let userFriendlyMessage = errorMessage;
+            
+            // 分类错误类型
+            if (errorMessage.includes('timeout')) {
+                userFriendlyMessage = '连接超时，请检查网络连接和设备状态';
+            } else if (errorMessage.includes('authentication') || errorMessage.includes('Unauthorized')) {
+                userFriendlyMessage = '认证失败，请检查用户名和密码';
+            } else if (errorMessage.includes('connection') || errorMessage.includes('connect')) {
+                userFriendlyMessage = '连接失败，请检查设备是否在线';
+            } else if (errorMessage.includes('stream') || errorMessage.includes('Stream')) {
+                userFriendlyMessage = '流地址无效，请检查设备配置';
+            }
+            
+            showVideoError(userFriendlyMessage);
             updateStreamStatus('连接失败', 'error');
             if (AppState.currentStreamId) {
-                await window.electronAPI.stopStream(AppState.currentStreamId);
+                try {
+                    await window.electronAPI.stopStream(AppState.currentStreamId);
+                } catch (stopError) {
+                    console.error('Failed to stop stream during error handling:', stopError);
+                }
                 AppState.currentStreamId = null;
             }
         }

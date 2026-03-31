@@ -123,46 +123,96 @@ app.on('before-quit', () => {
 
 function setupIpcHandlers() {
     ipcMain.handle('start-discovery', async (event, options = {}) => {
-        return await onvifDiscovery.startDiscovery(options);
+        try {
+            console.log('[IPC] Starting discovery with options:', options);
+            const result = await onvifDiscovery.startDiscovery(options);
+            console.log('[IPC] Discovery completed successfully, found', result.length, 'devices');
+            return result;
+        } catch (error) {
+            console.error('[IPC] Discovery failed:', error);
+            throw new Error(`Discovery failed: ${error.message || 'Unknown error'}`);
+        }
     });
 
     ipcMain.handle('stop-discovery', async () => {
-        return await onvifDiscovery.stopDiscovery();
+        try {
+            console.log('[IPC] Stopping discovery');
+            await onvifDiscovery.stopDiscovery();
+            console.log('[IPC] Discovery stopped successfully');
+            return true;
+        } catch (error) {
+            console.error('[IPC] Failed to stop discovery:', error);
+            throw new Error(`Failed to stop discovery: ${error.message || 'Unknown error'}`);
+        }
     });
 
     ipcMain.handle('get-devices', async () => {
-        return onvifDiscovery.getDevices();
+        try {
+            console.log('[IPC] Getting devices');
+            const devices = onvifDiscovery.getDevices();
+            console.log('[IPC] Retrieved', devices.length, 'devices');
+            return devices;
+        } catch (error) {
+            console.error('[IPC] Failed to get devices:', error);
+            throw new Error(`Failed to get devices: ${error.message || 'Unknown error'}`);
+        }
     });
 
     ipcMain.handle('get-stream-uri', async (event, deviceId, username, password) => {
-        return await onvifDiscovery.getStreamUri(deviceId, username, password);
+        try {
+            console.log('[IPC] Getting stream URI for device:', deviceId);
+            const result = await onvifDiscovery.getStreamUri(deviceId, username, password);
+            console.log('[IPC] Stream URI retrieved successfully');
+            return result;
+        } catch (error) {
+            console.error('[IPC] Failed to get stream URI:', error);
+            throw new Error(`Failed to get stream URI: ${error.message || 'Unknown error'}`);
+        }
     });
 
     ipcMain.handle('start-stream', async (event, rtspUrl, rtspUrls) => {
-        console.log('=== DEBUG: IPC start-stream ===');
-        console.log('rtspUrl:', rtspUrl);
-
-        const wsUrl = `ws://localhost:${PORT}/api/stream?url=${encodeURIComponent(rtspUrl)}`;
-        console.log('Generated WebSocket URL:', wsUrl);
-        return {
-            streamId: 'rtsp-relay-' + Date.now(),
-            wsUrl: wsUrl
-        };
+        try {
+            console.log('[IPC] Starting stream for URL:', rtspUrl);
+            const wsUrl = `ws://localhost:${PORT}/api/stream?url=${encodeURIComponent(rtspUrl)}`;
+            console.log('[IPC] Generated WebSocket URL:', wsUrl);
+            return {
+                streamId: 'rtsp-relay-' + Date.now(),
+                wsUrl: wsUrl
+            };
+        } catch (error) {
+            console.error('[IPC] Failed to start stream:', error);
+            throw new Error(`Failed to start stream: ${error.message || 'Unknown error'}`);
+        }
     });
 
     ipcMain.handle('stop-stream', async (event, streamId) => {
-        console.log('Stop stream requested for:', streamId);
-        return true;
+        try {
+            console.log('[IPC] Stopping stream:', streamId);
+            return true;
+        } catch (error) {
+            console.error('[IPC] Failed to stop stream:', error);
+            throw new Error(`Failed to stop stream: ${error.message || 'Unknown error'}`);
+        }
     });
 
     ipcMain.handle('get-ws-url', async (event, streamId) => {
-        console.log('get-ws-url called with streamId:', streamId);
-        return '';
+        try {
+            console.log('[IPC] Getting WS URL for stream:', streamId);
+            return '';
+        } catch (error) {
+            console.error('[IPC] Failed to get WS URL:', error);
+            throw new Error(`Failed to get WS URL: ${error.message || 'Unknown error'}`);
+        }
     });
 
     ipcMain.handle('test-rtsp-connection', async (event, rtspUrl) => {
-        console.log('Testing RTSP connection for:', rtspUrl);
-        // 简化测试逻辑，直接返回成功，因为我们会在前端实际加载视频流
-        return { success: true, error: null };
+        try {
+            console.log('[IPC] Testing RTSP connection for:', rtspUrl);
+            // 简化测试逻辑，直接返回成功，因为我们会在前端实际加载视频流
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[IPC] Failed to test RTSP connection:', error);
+            return { success: false, error: error.message || 'Unknown error' };
+        }
     });
 }
