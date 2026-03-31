@@ -53,7 +53,7 @@ async function startDiscovery() {
         AppState.isDiscovering = true;
         updateDiscoveryUI();
         showLoading(elements.deviceList);
-        const devices = await window.electronAPI.startDiscovery({ timeout: 5 });
+        const devices = await window.electronAPI.startDiscovery({ timeout: 8, retries: 3 });
         AppState.devices = devices;
         displayDevices(devices);
         if (devices.length === 0) {

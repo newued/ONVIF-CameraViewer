@@ -34,7 +34,8 @@ class OnvifDiscovery {
     /**
      * 开始发现 ONVIF 设备
      * @param {Object} options - 发现选项
-     * @param {number} options.timeout - 超时时间(秒),默认 3
+     * @param {number} options.timeout - 超时时间(秒),默认 5
+     * @param {number} options.retries - 重试次数,默认 2
      * @returns {Promise<Array>} 发现的设备列表
      */
     async startDiscovery(options = {}) {
@@ -45,39 +46,70 @@ class OnvifDiscovery {
         this.discovering = true;
         this.devices.clear();
 
-        const timeout = options.timeout || 3;
+        const timeout = options.timeout || 5;
+        const retries = options.retries || 2;
 
-        return new Promise((resolve, reject) => {
-            console.log('Starting ONVIF device discovery...');
+        let lastError;
 
-            // 开始发现
-            onvif.startProbe()
-                .then((deviceList) => {
-                    console.log(`Discovery complete. Found ${deviceList.length} devices.`);
+        for (let i = 0; i <= retries; i++) {
+            console.log(`Starting ONVIF device discovery (attempt ${i + 1}/${retries + 1})...`);
+            console.log('Discovery options:', options);
+            console.log('Timeout:', timeout, 'seconds');
+            console.log('Retries:', retries);
 
-                    deviceList.forEach((info) => {
-                        this.devices.set(info.urn, {
-                            urn: info.urn,
-                            name: info.name,
-                            hardware: info.hardware,
-                            location: info.location || 'Unknown',
-                            xaddrs: info.xaddrs,
-                            types: info.types,
-                            // 提取 IP 地址
-                            ip: this.extractIpAddress(info.xaddrs[0]),
-                            // 默认 ONVIF 端口
-                            port: 80
+            try {
+                // 开始发现
+                const deviceList = await new Promise((resolve, reject) => {
+                    // 设置超时
+                    const discoveryTimeout = setTimeout(() => {
+                        reject(new Error(`Discovery timeout after ${timeout} seconds`));
+                    }, timeout * 1000);
+
+                    onvif.startProbe()
+                        .then((devices) => {
+                            clearTimeout(discoveryTimeout);
+                            resolve(devices);
+                        })
+                        .catch((error) => {
+                            clearTimeout(discoveryTimeout);
+                            reject(error);
                         });
-                    });
-
-                    this.discovering = false;
-                    resolve(Array.from(this.devices.values()));
-                })
-                .catch((error) => {
-                    this.discovering = false;
-                    reject(error);
                 });
-        });
+
+                console.log(`Discovery complete. Found ${deviceList.length} devices.`);
+                console.log('Device list:', deviceList);
+
+                deviceList.forEach((info) => {
+                    console.log('Found device:', info);
+                    this.devices.set(info.urn, {
+                        urn: info.urn,
+                        name: info.name,
+                        hardware: info.hardware,
+                        location: info.location || 'Unknown',
+                        xaddrs: info.xaddrs,
+                        types: info.types,
+                        // 提取 IP 地址
+                        ip: this.extractIpAddress(info.xaddrs[0]),
+                        // 默认 ONVIF 端口
+                        port: 80
+                    });
+                });
+
+                this.discovering = false;
+                return Array.from(this.devices.values());
+            } catch (error) {
+                console.error(`Discovery attempt ${i + 1} failed:`, error);
+                lastError = error;
+
+                if (i < retries) {
+                    console.log(`Retrying discovery in 2 seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        }
+
+        this.discovering = false;
+        throw lastError;
     }
 
     /**
