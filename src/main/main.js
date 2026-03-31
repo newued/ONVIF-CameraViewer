@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -57,6 +57,58 @@ function createWindow() {
     if (process.argv.includes('--dev')) {
         mainWindow.webContents.openDevTools();
     }
+    
+    // 创建并设置菜单
+    createMenu();
+}
+
+function createMenu() {
+    const template = [
+        {
+            label: '应用',
+            submenu: [
+                {
+                    label: '刷新',
+                    accelerator: 'CmdOrCtrl+R',
+                    click: () => {
+                        mainWindow.reload();
+                    }
+                },
+                {
+                    type: 'separator'
+                },
+                {
+                    label: '退出',
+                    accelerator: 'CmdOrCtrl+Q',
+                    click: () => {
+                        app.quit();
+                    }
+                }
+            ]
+        },
+        {
+            label: '调试',
+            submenu: [
+                {
+                    label: '打开调试控制台',
+                    accelerator: 'CmdOrCtrl+Shift+I',
+                    click: () => {
+                        mainWindow.webContents.openDevTools();
+                    }
+                },
+                {
+                    label: '刷新页面',
+                    accelerator: 'F5',
+                    click: () => {
+                        mainWindow.reload();
+                    }
+                }
+            ]
+        }
+    ];
+    
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
 }
 
 app.whenReady().then(async () => {

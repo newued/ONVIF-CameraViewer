@@ -39,7 +39,7 @@
     var originalDisplay = canvas.style.display;
     canvas.style.display = 'none';
     var lastRx = Date.now();
-    var disconnectThreshold = opts.disconnectThreshold || 5000;
+    var disconnectThreshold = opts.disconnectThreshold || 15000;
     var player = null;
     var monitorTimer = null;
     var reconnectTimeout = null;

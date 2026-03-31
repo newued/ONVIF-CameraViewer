@@ -158,9 +158,9 @@ async function loginDevice() {
     const deviceIp = elements.deviceIpInput.value;
     const username = elements.usernameInput.value;
     const password = elements.passwordInput.value;
+    // 允许空密码登录，因为有些设备不需要认证
     if (!password) {
-        alert('请输入设备密码');
-        return;
+        console.log('Attempting to connect without password...');
     }
     const deviceId = document.querySelector('.device-item.active').dataset.deviceId;
     closeLoginModal();
@@ -307,8 +307,8 @@ async function loadStream(wsUrl, label, rtspUrl) {
             window.loadPlayer({
                 url: wsUrl,
                 canvas: canvas,
-                disconnectThreshold: 5000,
-                maxReconnectAttempts: 10,
+                disconnectThreshold: 15000, // 增加超时阈值
+                maxReconnectAttempts: 20, // 增加最大重连次数
                 onDisconnect: function (player) {
                     console.log('Stream disconnected:', label);
                     updateStreamStatus('连接断开', 'error');
