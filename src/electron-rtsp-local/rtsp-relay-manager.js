@@ -52,7 +52,20 @@ class RtspRelayManager {
             url: rtspUrl,
             useNativeFFmpeg: true,
             verbose: true,
-            transport: 'tcp'
+            transport: 'tcp',
+            // 添加FFmpeg配置，支持更多编码格式
+            ffmpegOptions: {
+                '-rtsp_transport': 'tcp',
+                '-max_delay': '5000000',
+                '-re': '',
+                '-i': rtspUrl,
+                '-c:v': 'mpeg1video',
+                '-b:v': '800k',
+                '-r': '25',
+                '-f': 'mpegts',
+                '-preset': 'ultrafast',
+                '-tune': 'zerolatency'
+            }
         });
 
         const streamKey = rtspUrl;
