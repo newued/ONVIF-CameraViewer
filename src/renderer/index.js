@@ -173,18 +173,33 @@ async function loginDevice() {
             throw new Error(streamInfo.error);
         }
         console.log('Stream info:', streamInfo);
-        const streamResult = await window.electronAPI.startStream(streamInfo.rtspUrl, streamInfo.rtspUrls);
-        AppState.currentStreamId = streamResult.streamId;
-        AppState.currentDevice = streamInfo;
-        AppState.currentLoginInfo = {
-            deviceId,
-            deviceName,
-            deviceIp,
-            username,
-            password
-        };
-        updateDeviceInfo(deviceName, deviceIp, streamInfo);
-        await loadStream(streamResult.wsUrl, deviceName, streamInfo.rtspUrl);
+        
+        // 尝试使用所有可用的 RTSP 地址
+        for (const rtspUrl of streamInfo.rtspUrls) {
+            try {
+                console.log('Trying RTSP URL:', rtspUrl);
+                const streamResult = await window.electronAPI.startStream(rtspUrl, streamInfo.rtspUrls);
+                AppState.currentStreamId = streamResult.streamId;
+                AppState.currentDevice = streamInfo;
+                AppState.currentLoginInfo = {
+                    deviceId,
+                    deviceName,
+                    deviceIp,
+                    username,
+                    password
+                };
+                updateDeviceInfo(deviceName, deviceIp, streamInfo);
+                await loadStream(streamResult.wsUrl, deviceName, rtspUrl);
+                updateStreamStatus('已连接', 'connected');
+                return;
+            } catch (error) {
+                console.error('Failed to connect with URL:', rtspUrl, error);
+                // 继续尝试下一个 URL
+            }
+        }
+        
+        // 如果所有 URL 都失败
+        throw new Error('Failed to connect to device with any RTSP URL');
     } catch (error) {
         console.error('Failed to connect to device:', error);
         showVideoError(error.message);
@@ -493,14 +508,21 @@ async function testRtspConnection() {
 
 // 从 RTSP URL 中提取 IP 地址
 function extractIpFromRtspUrl(url) {
-    const match = url.match(/rtsp:\/\/[^@]+@([^:]+):/);
-    return match ? match[1] : 'Unknown IP';
+    // 处理带认证的 URL: rtsp://user:pass@ip:port/path
+    const authMatch = url.match(/rtsp:\/\/[^@]+@([^:]+):/);
+    if (authMatch) {
+        return authMatch[1];
+    }
+    
+    // 处理不带认证的 URL: rtsp://ip:port/path
+    const noAuthMatch = url.match(/rtsp:\/\/([^:]+):/);
+    return noAuthMatch ? noAuthMatch[1] : 'Unknown IP';
 }
 
 // 从 RTSP URL 中提取用户名
 function extractUsernameFromRtspUrl(url) {
     const match = url.match(/rtsp:\/\/([^:]+):/);
-    return match ? match[1] : 'Unknown';
+    return match ? match[1] : '';
 }
 
 // 从 RTSP URL 中提取密码

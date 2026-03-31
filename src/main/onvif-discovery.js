@@ -143,7 +143,7 @@ class OnvifDiscovery {
 
         console.log('=== DEBUG: getStreamUri ===');
         console.log(`Device: ${device.name} (${device.ip})`);
-        console.log(`Credentials: ${username}/******`);
+        console.log(`Credentials: ${username || 'none'}/${password ? '******' : 'none'}`);
 
         try {
             console.log('Step 1: Creating ONVIF device object...');
@@ -157,11 +157,11 @@ class OnvifDiscovery {
                 console.log(`使用默认ONVIF地址: ${xaddr}`);
             }
 
-            // 创建 OnvifDevice 对象
+            // 创建 OnvifDevice 对象，支持不需要认证的设备
             const onvifDevice = new onvif.OnvifDevice({
                 xaddr: xaddr,
-                user: username,
-                pass: password
+                user: username || '',
+                pass: password || ''
             });
 
             console.log('Step 2: Initializing device connection...');
@@ -242,8 +242,8 @@ class OnvifDiscovery {
             console.log('Step 5: Building RTSP URL...');
 
             // 如果 ONVIF 获取失败,使用通用 RTSP 地址列表
-            const rtspUrl = streamUri || this.buildTPLinkRtspUrl(device.ip, username, password);
             const allUrls = this.buildUniversalRtspUrls(device.ip, username, password);
+            const rtspUrl = streamUri || allUrls[0];
 
             console.log('Final RTSP URL:', rtspUrl);
             console.log('All available URLs:', allUrls);
@@ -266,7 +266,7 @@ class OnvifDiscovery {
 
             return {
                 error: error.message,
-                rtspUrl: fallbackUrls[1], // 默认使用 TP-Link 格式
+                rtspUrl: fallbackUrls[0], // 默认使用第一个格式
                 rtspUrls: fallbackUrls, // 提供所有格式
                 ip: device.ip,
                 port: 554,
@@ -326,12 +326,25 @@ class OnvifDiscovery {
      * @returns {Array<string>} RTSP URL 列表
      */
     buildUniversalRtspUrls(ip, username, password) {
-        return [
-            this.buildHikvisionRtspUrl(ip, username, password),
-            this.buildTPLinkRtspUrl(ip, username, password),
-            `rtsp://${username}:${password}@${ip}:554/av0_0`, // 通用格式 1
-            `rtsp://${username}:${password}@${ip}:554/ch0_0`  // 通用格式 2
+        const baseUrl = username && password
+            ? `rtsp://${username}:${password}@${ip}`
+            : `rtsp://${ip}`;
+
+        const ports = [554, 8554, 5554]; // 常见的 RTSP 端口
+        const paths = [
+            '/stream1', '/stream2', '/live', '/live0.254',
+            '/av0_0', '/ch0_0', '/Streaming/Channels/101',
+            '/onvif1', '/media/video1', '/live0.264'
         ];
+
+        const urls = [];
+        ports.forEach(port => {
+            paths.forEach(path => {
+                urls.push(`${baseUrl}:${port}${path}`);
+            });
+        });
+
+        return urls;
     }
 }
 
